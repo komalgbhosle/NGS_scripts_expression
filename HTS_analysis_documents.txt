@@ -1,0 +1,77 @@
+##########################################Expression and Variant analysis of HTS data#######################################################
+#step1:collect data fro GEO and arrayexpress (HTS) take only controle and disease samples
+
+#step2:For HTS analysis collect bioproject id, SRR id, GSM id, contole/disease data from SRA link or EBI database
+
+#step3:Generate urls for HTS samples [script:HTS_preprocessing_scripts/get_samples_urls_from_project_ids.ipynb]
+1)add all HTS bioproject ids in-----[bioproject_study_ids.csv] 
+2)output :Asthma_sample_urls.csv [bioprojectid,run_accession,link]
+[Note.copy this ouput in excel]
+3)Remove all urls for other disease (only keep controle and disease urls)
+
+#Step4:Run automted processing of Expression and variant analysis [script:NGS_Pipeline/Automated_NGS_pipeline.sh]---this process takes time
+(keep all files in this NGS_pipeline folder)
+1)take only urls from above step---save in output folder as sample_urls.txt
+2)run script
+$./Automated_NGS_pipeline.sh [path of sample_urls.txt file contatining folder] [no of cores]
+3)results will generate for both expression and variants one by one for each sample
+(in output folder files will generate as)
+Expression:output_expression/expression_values/SRR/quant.sf
+variants:output_mutations/final_vcf/
+
+                                 ################ Expression analysis ##############
+####Step1:For Expression data generate tpm matrix
+[Note:make one folder contatining all expression SRR sample IDS folder and add generate_tpm_matrix.py script in that]
+1)Generate study_sample_mapping.csv file in that folder
+bioprojectids	SRRIDS
+PRJNA640288	SRR12043194
+PRJNA640288	SRR12043195
+2)run the script [script:generate_tpm_matrix.py]
+$python3 generate_tpm_matrix.py
+
+3)results: tpm_matrix folder contating all bioprojectids
+
+###Step2:For Expression data, Generate sample_info.csv and TPM_ExpData.csv [Script:HTS_analysis_scripts/GenePrioritization/HTS2ExpData.ipynb]
+[create Expression output folder]
+
+1)generate sample_info.csv [save in output folder]
+ExperimentID,SampleID,Condition
+PRJNA486744,SRR7721184,Control
+PRJNA486744,SRR7721185,Control
+PRJNA486744,SRR7721186,Control
+PRJNA486744,SRR7721187,Control
+
+2)change path in HTS2ExpData.ipynb
+main_directory = '[tpm_matrix folder path]'
+exp_matrix.to_csv(f"[path of output folder]/{study_ids}_TPM_ExpData.csv", index=False)  
+df2 = pd.read_csv("[path of output folder]/sample_info.csv")
+study_specific.to_csv(f"[path of output folder]/{i}_Sample_info.csv", index=False)
+
+3)Results:PRJNA_Sample_info.csv and PRJNA_TPM_ExpData.csv files
+
+4)Make matadata file
+
+###Step3:deg analysis script [Script:/HTS_analysis_scripts/GenePrioritization/automate_expression_analysis.py]
+[Note: save meatadata file result in Meatafile_data.csv]
+$python3 automate_expression_analysis.py
+
+###Step4:Normalize result--->>>> take more significant pvalue gene from all data
+[script:/HTS_analysis_scripts/Automated_Microarray_result_normalization_scripts.sh]
+
+
+###Step5:To combine HTS analysis and Microarray Expression analysis and make one combiled file
+{Note: To filter the more significant p value gene ["Keep only significant gene from both"]}
+#File1 = HTS.csv
+#File2 = Microarray.csv
+cat *.csv | sed "s/,/\t/g" | sort -k3 | uniq | awk '!seen[$1]++' > indication_final_Expression_out.txt
+
+
+
+
+
+
+ 
+
+
+
+
